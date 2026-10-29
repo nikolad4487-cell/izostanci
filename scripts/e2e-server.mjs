@@ -1,21 +1,13 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { execFileSync, spawn } from "node:child_process";
-const dir = mkdtempSync(join(tmpdir(), "dolaznost-browser-"));
+import { spawn } from "node:child_process";
+import { createTestDatabase } from "./test-db.mjs";
+const isolated = await createTestDatabase();
 const env = {
   ...process.env,
   APP_PASSWORD: "e2e-local-test-password-2026",
-  TURSO_DATABASE_URL: "",
-  TURSO_AUTH_TOKEN: "",
   VERCEL: "",
-  DATABASE_URL: `file:${join(dir, "browser.db")}`,
+  DATABASE_URL: isolated.connectionString,
+  DIRECT_URL: "",
 };
-execFileSync(
-  process.execPath,
-  ["node_modules/prisma/build/index.js", "db", "push", "--skip-generate"],
-  { env, stdio: "inherit" },
-);
 const child = spawn(
   process.execPath,
   [
@@ -37,7 +29,7 @@ function stop() {
 }
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
-child.on("exit", (code) => {
-  rmSync(dir, { recursive: true, force: true });
+child.on("exit", async (code) => {
+  await isolated.dispose();
   process.exit(stopping ? 0 : (code ?? 1));
 });

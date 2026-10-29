@@ -1,26 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { createTestDatabase } from "../scripts/test-db.mjs";
 import { NextRequest } from "next/server";
 import type { Data, Session } from "../src/lib/types";
 import { fixture } from "./fixtures";
 let db: (typeof import("../src/lib/db"))["db"];
 let store: typeof import("../src/lib/store");
 let post: (typeof import("../src/app/api/data/route"))["POST"];
-const dir = mkdtempSync(join(tmpdir(), "dolaznost-test-"));
+let isolated: Awaited<ReturnType<typeof createTestDatabase>>;
 beforeAll(async () => {
-  process.env.TURSO_DATABASE_URL = "";
-  process.env.TURSO_AUTH_TOKEN = "";
   process.env.APP_PASSWORD = "";
   process.env.VERCEL = "";
-  process.env.DATABASE_URL = `file:${join(dir, "test.db")}`;
-  execFileSync(
-    process.execPath,
-    ["node_modules/prisma/build/index.js", "db", "push", "--skip-generate"],
-    { env: process.env, stdio: "pipe" },
-  );
+  isolated = await createTestDatabase();
+  process.env.DATABASE_URL = isolated.connectionString;
   ({ db } = await import("../src/lib/db"));
   store = await import("../src/lib/store");
   ({ POST: post } = await import("../src/app/api/data/route"));
@@ -31,7 +22,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await db?.$disconnect();
-  rmSync(dir, { recursive: true, force: true });
+  await isolated?.dispose();
 });
 async function action(payload: Record<string, unknown>) {
   return post(
@@ -52,7 +43,7 @@ async function ok(payload: Record<string, unknown>): Promise<Data> {
   expect(r.status, JSON.stringify(body)).toBe(200);
   return body;
 }
-describe.sequential("SQLite, API, raspored i sigurnosne kopije", () => {
+describe.sequential("PostgreSQL, API, raspored i sigurnosne kopije", () => {
   it("generira ponavljanje bez praznika i ponovljena generacija je idempotentna", async () => {
     await ok({
       action: "holiday",

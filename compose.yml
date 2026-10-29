@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: dolaznost
+      POSTGRES_PASSWORD: dolaznost_local
+      POSTGRES_DB: dolaznost
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - dolaznost_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dolaznost -d dolaznost"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+volumes:
+  dolaznost_postgres:

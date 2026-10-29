@@ -191,7 +191,7 @@ function PortalContent() {
       }
       if (!res.ok)
         throw new Error(
-          "Baza nije dostupna. Provjerite DATABASE_URL i pokrenite npm run db:push.",
+          "Baza nije dostupna. Provjerite DATABASE_URL i pokrenite npm run db:deploy.",
         );
       const d: Data = await res.json();
       setData(d);
@@ -209,7 +209,7 @@ function PortalContent() {
           throw new Error("Prijavite se ponovno.");
         }
         if (!res.ok)
-          throw new Error("Baza nije dostupna. Pokrenite npm run db:push.");
+          throw new Error("Baza nije dostupna. Pokrenite npm run db:deploy.");
         return res.json() as Promise<Data>;
       })
       .then((result) => {
@@ -2214,8 +2214,9 @@ function PortalContent() {
                 <ShieldCheck size={18} className="muted" />
               </div>
               <p className="muted" style={{ fontSize: 12, marginBottom: 18 }}>
-                Podaci se trajno čuvaju u SQLite bazi na poslužitelju. Preuzmite
-                JSON sigurnosnu kopiju prije većih izmjena ili brisanja.
+                Podaci se trajno čuvaju u PostgreSQL bazi na poslužitelju.
+                Preuzmite JSON sigurnosnu kopiju prije većih izmjena ili
+                brisanja.
               </p>
               <div className="actions">
                 <Button onClick={() => exportJSON(d)}>

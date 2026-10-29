@@ -1,15 +1,16 @@
 # Dolaznost
 
-Osobna web-aplikacija na hrvatskom za praćenje dolaznosti studenata. Next.js, React, TypeScript, Tailwind CSS, shadcn/ui Button, Lucide, Prisma, SQLite, Recharts, date-fns, React Hook Form i Zod.
+Osobna web-aplikacija na hrvatskom za praćenje dolaznosti studenata. Next.js, React, TypeScript, Tailwind CSS, shadcn/ui Button, Lucide, Prisma, Supabase/PostgreSQL, Recharts, date-fns, React Hook Form i Zod.
 
 ## Lokalno pokretanje
 
-Potreban je Node.js 24.x (provjereno na 24.19) i npm. Baza je lokalna datoteka na **poslužitelju**, ne stanje preglednika.
+Potrebni su Node.js 24.x (provjereno na 24.19), npm i PostgreSQL. Za lokalnu bazu koristite Docker Compose iz ovog projekta. Podaci se trajno spremaju na poslužitelju, ne u pregledniku.
 
 ```bash
 npm ci
 cp .env.example .env
-npm run db:push
+docker compose up -d --wait db
+npm run db:deploy
 npm run dev
 ```
 
@@ -20,9 +21,9 @@ npm run build
 npm start
 ```
 
-Ako `.env` već postoji, sačuvajte ga. `DATABASE_URL="file:./prisma/dev.db"` određuje put u odnosu na korijen projekta. Prilagođenu putanju postavite i pri pokretanju aplikacije i pri pripremi baze. Ne brišite bazu prilikom ažuriranja. Prije promjene sheme izvezite JSON sigurnosnu kopiju. `db:push` služi ovoj početnoj lokalnoj instalaciji; za budući razvoj produkcijske sheme koristite pregledane migracije.
+Ako `.env` već postoji, sačuvajte ga i provjerite `DATABASE_URL`. Lokalni PostgreSQL iz `compose.yml` dostupan je samo na `127.0.0.1:54329`; podaci se čuvaju u Docker volumenu. `docker compose down` zaustavlja bazu bez brisanja volumena. Nemojte koristiti `down -v` ako želite zadržati podatke. Lozinka iz `.env.example` vrijedi isključivo za lokalni razvoj, ne za Supabase.
 
-Prisma 6.19 koristi `engineType = "client"`, JavaScript schema engine i `@prisma/adapter-libsql`. Lokalno radi s SQLite datotekom; na Vercelu koristi trajnu Turso bazu. Nema kompilacije `better-sqlite3` ni preuzimanja Rust enginea. Lokalni `db:push` čita isključivo `DATABASE_URL`; produkcijski `db:deploy` primjenjuje verzionirane SQL migracije na `TURSO_DATABASE_URL`.
+Prisma 6.19 koristi `engineType = "client"`, JavaScript schema engine i `@prisma/adapter-pg`. Lokalno i na Vercelu koristi se PostgreSQL, s tablicama u vlastitoj shemi `dolaznost`. Nema lokalne SQLite datoteke u novom runtimeu. Za pripremu baze koristite verzionirane migracije (`npm run db:deploy`), ne resetiranje sheme. `DIRECT_URL`, ako je postavljen, koristi se samo za migracije; aplikacija koristi `DATABASE_URL`.
 
 ## Prvi unos
 
@@ -68,7 +69,7 @@ Brisanje kolegija, skupine, semestra ili godine traži potvrdu i briše povezane
 - **PDF**: sažetak po skupinama i detaljna evidencija, s ugrađenim fontom koji podržava hrvatske znakove.
 - **JSON verzija 1**: sva relacijska evidencija i postavke, za potpunu sigurnosnu kopiju i vraćanje.
 
-Uvoz provjerava strukturu Zodom, relacije, identifikatore i duple dnevne jedinice. Traži izričitu potvrdu zamjene te radi atomarno: pogreška ne smije ostaviti djelomično uvezenu bazu. Granica datoteke u sučelju je 4 MB, ispod ograničenja Vercel funkcija. Uvoz zamjenjuje sve podatke; ne spaja dvije arhive. Redovito spremite JSON i izvan stroja koji pokreće aplikaciju. Datoteka `prisma/dev.db` također je lokalna baza; za kopiranje izravne datoteke prvo zaustavite poslužitelj.
+Uvoz provjerava strukturu Zodom, relacije, identifikatore i duple dnevne jedinice. Traži izričitu potvrdu zamjene te radi atomarno: pogreška ne smije ostaviti djelomično uvezenu bazu. Granica datoteke u sučelju je 4 MB, ispod ograničenja Vercel funkcija. Uvoz zamjenjuje sve podatke; ne spaja dvije arhive. Redovito spremite JSON i izvan stroja koji pokreće aplikaciju. Za sigurnosnu kopiju cijele PostgreSQL baze koristite `pg_dump` ili dostupne opcije sigurnosnih kopija u Supabaseu.
 
 ## Provjere
 
@@ -80,9 +81,9 @@ npm run build
 npm run test:e2e
 ```
 
-Vitest pokriva tražene matematičke scenarije, rubne postotke, opravdane/djelomične izostanke, buduće termine, nepotpune rasporede, nadoknade, odvojene semestre, promjene pravila i SQLite/API integraciju. Integracijski testovi koriste odvojenu privremenu bazu i provjeravaju očuvanje evidencije pri promjeni rasporeda, promjenu načina brojanja i atomarni JSON uvoz.
+Vitest pokriva tražene matematičke scenarije, rubne postotke, opravdane/djelomične izostanke, buduće termine, nepotpune rasporede, nadoknade, odvojene semestre, promjene pravila i PostgreSQL/API integraciju. Integracijski testovi stvaraju odvojene privremene PostgreSQL baze i provjeravaju očuvanje evidencije pri promjeni rasporeda, promjenu načina brojanja i atomarni JSON uvoz.
 
-Playwright pokreće zaseban produkcijski poslužitelj na portu 3100 s privremenom bazom. Najprije napravite `npm run build`. Koristi `/usr/bin/chromium` kada je dostupan; drugdje instalirajte `npx playwright install chromium` ili postavite `CHROMIUM_PATH`. Test unosi stvarne podatke kroz obrasce, provjerava izostanak za četiri sata nastave, izvoz PDF/CSV/JSON, trajnost nakon ponovnog učitavanja, kalendar, statistiku, tamnu temu i mobilni prikaz. Testovi ne koriste vašu bazu.
+Playwright pokreće zaseban produkcijski poslužitelj na portu 3100 s privremenom bazom. Najprije napravite `npm run build`. Koristi `/usr/bin/chromium` kada je dostupan; drugdje instalirajte `npx playwright install chromium` ili postavite `CHROMIUM_PATH`. Test unosi stvarne podatke kroz obrasce, provjerava izostanak za četiri sata nastave, izvoz PDF/CSV/JSON, trajnost nakon ponovnog učitavanja, kalendar, statistiku, tamnu temu i mobilni prikaz. Testovi ne koriste `DATABASE_URL` ni vašu Supabase bazu. Čitaju samo `TEST_DATABASE_URL` ili zadanu lokalnu vezu iz `compose.yml`; račun mora smjeti stvarati i brisati testne baze. Prije testiranja pokrenite lokalni PostgreSQL.
 
 ## Struktura i ograničenja
 
@@ -95,7 +96,9 @@ Playwright pokreće zaseban produkcijski poslužitelj na portu 3100 s privremeno
 
 Aplikacija je **osobni prostor za jednog korisnika**. Na Vercelu je obavezna prijava lozinkom `APP_PASSWORD` (najmanje 16 znakova). Lokalno je prijava neobavezna; uključuje se postavljanjem iste varijable. Sesija traje sedam dana i koristi potpisani HttpOnly cookie. Promjena lozinke poništava stare sesije. API zasebno provjerava sesiju uz zaštitu kroz Next.js Proxy. Razdvajanje više korisničkih računa nije implementirano. Nisu implementirane e-mail/push obavijesti, sinkronizacija s fakultetskim sustavima ni automatska potvrda službenih pravila. Upozorenja su unutar aplikacije.
 
-Za kasniji PostgreSQL prijelaz normalizirane relacije ostaju iste; treba promijeniti Prisma datasource, zamijeniti SQLite adapter PostgreSQL adapterom, izraditi migracije i prenijeti podatke. PostgreSQL put nije implementiran niti testiran u ovoj verziji.
+Supabase se koristi kao PostgreSQL baza, dok postojeća prijava lozinkom ostaje zaštita osobnog prostora. Supabase Auth i višekorisnički računi nisu uvedeni. Tablice su u shemi `dolaznost`, RLS je uključen i `anon`/`authenticated` uloge nemaju pristup. Nemojte dodavati tu shemu u Supabase **Exposed schemas**. Server se spaja kao vlasnik tablica preko privatnog PostgreSQL connection stringa; javni Supabase Project URL i anon/publishable ključ nisu zamjena za njega.
+
+Ako imate podatke iz ranije SQLite/Turso verzije, izvezite JSON iz stare aplikacije i uvezite ga u novu nakon objave. Format evidencije ostao je isti. Lokalna SQLite datoteka nije izbrisana, ali je novi runtime ne koristi. Stara SQL shema sačuvana je samo kao referenca u `prisma/legacy-sqlite/`; ne primjenjuje se na PostgreSQL.
 
 Font DejaVu Sans i licenca nalaze se u `public/fonts/`. Ne dijelite `.env` i datoteke baze kroz Git.
 
@@ -103,25 +106,27 @@ Font DejaVu Sans i licenca nalaze se u `public/fonts/`. Ne dijelite `.env` i dat
 
 Repozitorij: https://github.com/nikolad4487-cell/izostanci
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnikolad4487-cell%2Fizostanci&env=TURSO_DATABASE_URL,TURSO_AUTH_TOKEN,APP_PASSWORD&envDescription=Trajna%20Turso%20SQLite%20baza%20i%20lozinka%20za%20privatnu%20evidenciju&envLink=https%3A%2F%2Fgithub.com%2Fnikolad4487-cell%2Fizostanci%23github-i-vercel&project-name=izostanci&repository-name=izostanci)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnikolad4487-cell%2Fizostanci&env=DATABASE_URL,APP_PASSWORD&envDescription=Supabase%20PostgreSQL%20connection%20string%20i%20lozinka%20aplikacije&envLink=https%3A%2F%2Fgithub.com%2Fnikolad4487-cell%2Fizostanci%23github-i-vercel&project-name=izostanci&repository-name=izostanci)
 
-1. Na [Turso](https://turso.tech/) otvorite novu praznu bazu. U nadzornoj ploči kopirajte njen Database URL i napravite token s pravom čitanja i pisanja.
-2. U [Vercel New Project](https://vercel.com/new) uvezite `nikolad4487-cell/izostanci`. Odaberite Next.js i korijenski direktorij repozitorija. Ako je repozitorij privatan, dopustite Vercel GitHub integraciji pristup.
-3. Postavite Node.js 24.x i ove **Environment Variables** (vrijednosti unosite isključivo u Vercel, ne u Git i ne u razgovor):
+1. U svom [Supabase](https://supabase.com/dashboard) projektu kliknite **Connect**. Pripremite lozinku baze (Database password); ako je ne znate, postavite novu kroz postavke baze.
+2. Kopirajte **Session pooler** PostgreSQL connection string s portom **5432**. Session pooler podržava IPv4 i može poslužiti i aplikaciji i migracijama. Zamijenite `[YOUR-PASSWORD]` stvarnom lozinkom baze. Posebne znakove lozinke URL-enkodirajte, a TLS provjeru zadržite (`sslmode=verify-full`). Ne isključujte provjeru certifikata.
+3. U Vercelu otvorite projekt → **Settings → Environment Variables**. Postavite:
 
-   | Naziv                | Vrijednost                                               |
-   | -------------------- | -------------------------------------------------------- |
-   | `TURSO_DATABASE_URL` | URL nove baze, npr. `libsql://ime-organizacija.turso.io` |
-   | `TURSO_AUTH_TOKEN`   | Turso token za tu bazu, s pravom pisanja                 |
-   | `APP_PASSWORD`       | Vlastita duga nasumična lozinka, najmanje 16 znakova     |
+   | Naziv          | Vrijednost                                                                                 | Obavezno |
+   | -------------- | ------------------------------------------------------------------------------------------ | -------- |
+   | `DATABASE_URL` | PostgreSQL connection string iz Supabase **Connect → Session pooler** (5432)               | Da       |
+   | `APP_PASSWORD` | Vlastita duga nasumična lozinka za ulazak u aplikaciju, najmanje 16 znakova                | Da       |
+   | `DIRECT_URL`   | Session pooler (5432) ili Direct connection za migracije, ako se razlikuje od runtime veze | Ne       |
 
-4. Kliknite **Deploy**. `vercel.json` automatski bira `npm ci` i `npm run build:vercel`. Izgradnja provjerava postavke, generira Prisma klijent, primjenjuje verzionirane migracije i gradi Next.js aplikaciju. Ako nedostaje obavezna postavka, izgradnja se prekida uz naziv nedostajuće varijable; nema prelaska na privremenu lokalnu bazu.
-5. Otvorite dodijeljenu Vercel adresu i prijavite se postavljenom lozinkom. Odjava je u gornjem izborniku. Ako postoje raniji lokalni podaci, najprije izvezite JSON, a zatim ga uvezite u objavljenu aplikaciju.
+   Za serverless runtime možete umjesto Session poolera koristiti **Transaction pooler** (6543) u `DATABASE_URL`, a Session pooler u `DIRECT_URL`. Koristite točne hostove i korisnička imena iz vlastitog Supabase Connect prozora. Direct connection može zahtijevati IPv6; ako ne radi s build stroja, za migracije koristite Session pooler. Ne unosite stvarne lozinke u Git ili razgovor i nemojte dodavati prefiks `NEXT_PUBLIC_` ovim varijablama.
 
-`DATABASE_URL=file:...` **ne postavljajte na Vercel**. Turso je trajna SQLite baza izvan serverless funkcije. Postojeća SQLite datoteka iz lokalnog okruženja nije dio Gita i ne prenosi se sama na Vercel.
+4. Varijable uključite za **Production**, zatim otvorite **Deployments → Redeploy** najnovijeg commita. Vercel koristi Node.js 24.x, `npm ci` i `npm run build:vercel`. Skripta provjerava postavke, generira Prisma klijent, primjenjuje PostgreSQL migracije i gradi aplikaciju. Ako nedostaje obavezna varijabla, build se prekida s nazivom varijable.
+5. Otvorite dodijeljenu adresu i prijavite se vrijednošću `APP_PASSWORD`. Izvoz/uvoz JSON-a i svi izračuni rade kao prije. Tablice ćete u Supabase Table Editoru pronaći u shemi **dolaznost**, a ne u `public`.
 
-Za Preview okruženja koristite zasebnu Turso bazu i token ili onemogućite preview deploymentove dok ih ne konfigurirate. Produkcijska baza ne bi se trebala koristiti za testne promjene i uvoz/brisanje testnih podataka. Nove SQL promjene dodajte kao novu migracijsku mapu; već primijenjene migracije ne mijenjajte. `db:deploy` bilježi kontrolne zbrojeve i čuva postojeću evidenciju pri ponovnom izvršavanju. Nemojte koristiti `db:push` ili reset nad produkcijskom bazom.
+Stare varijable `TURSO_DATABASE_URL` i `TURSO_AUTH_TOKEN` više se ne koriste i možete ih ukloniti iz Vercela. Supabase Project URL (`https://...supabase.co`), anon/publishable ključ i service-role ključ **nisu** traženi PostgreSQL connection string. Za ovaj način rada nisu potrebni.
 
-GitHub Actions provjerava izračune, bazu, prijavu, migracije, lint, TypeScript, build i korisnički tijek u pregledniku pri promjenama glavne grane. Običan `npm run build` služi lokalnom radu i CI-u; Vercel koristi `build:vercel` koji zahtijeva stvarnu udaljenu bazu.
+Migracije mijenjaju samo shemu `dolaznost` i svoju migracijsku evidenciju, bez diranja Supabaseovih `auth`, `storage` ili vaših drugih tablica. Evidentiraju kontrolne zbrojeve, koriste transakciju i PostgreSQL advisory lock radi zaštite od istodobnih buildova. Već primijenjene migracije nemojte mijenjati; dodajte novu mapu. Prije važnih izmjena preuzmite JSON sigurnosnu kopiju.
 
-Priprema i lokalne provjere ne znače da je projekt objavljen: prvi stvarni deployment zahtijeva vaš Vercel/Turso račun i gore navedene postavke. Vanjska Turso veza i Vercel objava moraju se provjeriti nakon njihovog unosa.
+Za Preview koristite zaseban Supabase projekt/bazu ili onemogućite Preview dok ne postavite odvojene varijable. Testni uvoz i brisanje ne smiju koristiti produkcijsku bazu. GitHub Actions provjerava aplikaciju na PostgreSQL 17 servisu, uključujući migracije, RLS, izračune, prijavu, lint, TypeScript, build i preglednik.
+
+Lokalno je migracija provjerena na PostgreSQL-u. Stvarna Supabase veza i Vercel objava zahtijevaju vaše postavke i zasebnu provjeru nakon Redeploya; spremanje koda nije potvrda uspješnog povezivanja s vašim projektom.

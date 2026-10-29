@@ -8,6 +8,20 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dolaznost
+          POSTGRES_PASSWORD: dolaznost_local
+          POSTGRES_DB: dolaznost
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U dolaznost -d dolaznost"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

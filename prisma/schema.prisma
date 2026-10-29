@@ -3,13 +3,15 @@ generator client {
   engineType = "client"
 }
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url = env("DATABASE_URL")
+  schemas = ["dolaznost"]
 }
 model AcademicYear {
   id String @id
   name String
   semesters Semester[]
+  @@schema("dolaznost")
 }
 model Semester {
   id String @id
@@ -20,6 +22,7 @@ model Semester {
   end String
   holidays Holiday[]
   courses Course[]
+  @@schema("dolaznost")
 }
 model Holiday {
   id String @id
@@ -28,6 +31,7 @@ model Holiday {
   date String
   name String
   @@unique([semesterId, date])
+  @@schema("dolaznost")
 }
 model Course {
   id String @id
@@ -42,6 +46,7 @@ model Course {
   exerciseHours Int @default(0)
   seminarHours Int @default(0)
   groups TeachingGroup[]
+  @@schema("dolaznost")
 }
 model TeachingGroup {
   id String @id
@@ -54,6 +59,7 @@ model TeachingGroup {
   slots WeeklySlot[]
   sessions Session[]
   units AttendanceUnit[]
+  @@schema("dolaznost")
 }
 model AttendanceRule {
   id String @id
@@ -67,6 +73,7 @@ model AttendanceRule {
   partialWeight Float @default(0.5)
   excusedCounts Boolean @default(false)
   consequence String @default("")
+  @@schema("dolaznost")
 }
 model WeeklySlot {
   id String @id
@@ -80,6 +87,7 @@ model WeeklySlot {
   start String
   end String
   sessions Session[]
+  @@schema("dolaznost")
 }
 model Session {
   id String @id
@@ -99,6 +107,7 @@ model Session {
   unitId String
   unit AttendanceUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
   @@unique([slotId, originalDate])
+  @@schema("dolaznost")
 }
 model AttendanceUnit {
   id String @id
@@ -107,6 +116,7 @@ model AttendanceUnit {
   date String
   sessions Session[]
   attendance Attendance?
+  @@schema("dolaznost")
 }
 model Attendance {
   id String @id
@@ -114,6 +124,7 @@ model Attendance {
   unit AttendanceUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
   status String
   note String @default("")
+  @@schema("dolaznost")
 }
 model UserSettings {
   id String @id @default("default")
@@ -125,4 +136,5 @@ model UserSettings {
   excusedCounts Boolean @default(false)
   warnings Boolean @default(true)
   theme String @default("system")
+  @@schema("dolaznost")
 }

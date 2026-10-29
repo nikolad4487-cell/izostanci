@@ -64,6 +64,7 @@ export async function attachUnit(
     group.course.counting === "DAY"
       ? await tx.attendanceUnit.findFirst({
           where: { groupId: s.groupId, date: s.date },
+          orderBy: { id: "asc" },
         })
       : null;
   const unitId =
