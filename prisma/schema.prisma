@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "client"
+}
+datasource db {
+  provider = "sqlite"
+  url = env("DATABASE_URL")
+}
+model AcademicYear {
+  id String @id
+  name String
+  semesters Semester[]
+}
+model Semester {
+  id String @id
+  yearId String
+  year AcademicYear @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  name String
+  start String
+  end String
+  holidays Holiday[]
+  courses Course[]
+}
+model Holiday {
+  id String @id
+  semesterId String
+  semester Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  date String
+  name String
+  @@unique([semesterId, date])
+}
+model Course {
+  id String @id
+  semesterId String
+  semester Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  name String
+  professor String @default("")
+  notes String @default("")
+  color String @default("#2563eb")
+  counting String @default("DAY")
+  lectureHours Int @default(0)
+  exerciseHours Int @default(0)
+  seminarHours Int @default(0)
+  groups TeachingGroup[]
+}
+model TeachingGroup {
+  id String @id
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  name String
+  type String
+  plannedUnits Int @default(0)
+  rule AttendanceRule?
+  slots WeeklySlot[]
+  sessions Session[]
+  units AttendanceUnit[]
+}
+model AttendanceRule {
+  id String @id
+  groupId String @unique
+  group TeachingGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  mode String @default("PERCENT")
+  minimum Float @default(80)
+  maximum Int @default(0)
+  extra Int @default(0)
+  partial String @default("ABSENT")
+  partialWeight Float @default(0.5)
+  excusedCounts Boolean @default(false)
+  consequence String @default("")
+}
+model WeeklySlot {
+  id String @id
+  groupId String
+  group TeachingGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  weekday Int
+  startTime String
+  endTime String
+  hours Int
+  room String @default("")
+  start String
+  end String
+  sessions Session[]
+}
+model Session {
+  id String @id
+  groupId String
+  group TeachingGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  slotId String?
+  slot WeeklySlot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  originalDate String?
+  date String
+  startTime String
+  endTime String
+  hours Int
+  room String @default("")
+  kind String @default("REGULAR")
+  state String @default("PLANNED")
+  modified Boolean @default(false)
+  unitId String
+  unit AttendanceUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  @@unique([slotId, originalDate])
+}
+model AttendanceUnit {
+  id String @id
+  groupId String
+  group TeachingGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  date String
+  sessions Session[]
+  attendance Attendance?
+}
+model Attendance {
+  id String @id
+  unitId String @unique
+  unit AttendanceUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  status String
+  note String @default("")
+}
+model UserSettings {
+  id String @id @default("default")
+  minimum Float @default(80)
+  extra Int @default(0)
+  counting String @default("DAY")
+  partial String @default("ABSENT")
+  partialWeight Float @default(0.5)
+  excusedCounts Boolean @default(false)
+  warnings Boolean @default(true)
+  theme String @default("system")
+}

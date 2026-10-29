@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.env*
+!.env.example
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+test-results/
+playwright-report/
+
+.vercel/
